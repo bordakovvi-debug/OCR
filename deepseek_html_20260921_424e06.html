@@ -1,0 +1,1208 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Сканер тестов 2ГИС — правильные ответы по скрину</title>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<style>
+  :root{
+    --bg1:#667eea; --bg2:#764ba2; --card:#fff; --text:#333;
+    --muted:#888; --line:#e0e0e0; --ok:#4caf50; --okbg:#e8f5e9;
+    --no:#f44336; --nobg:#ffebee; --soft:#f5f7ff;
+    --warn:#f59e0b; --warnbg:#fff7e6;
+  }
+  body.dark{
+    --bg1:#1a1a2e; --bg2:#16213e; --card:#22223a; --text:#eee;
+    --muted:#999; --line:#3a3a55; --soft:#2a2a45;
+    --okbg:#1e3a24; --nobg:#3a1e22; --warnbg:#3a2e10;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:'Segoe UI',Tahoma,sans-serif;
+    background:linear-gradient(135deg,var(--bg1),var(--bg2));
+    min-height:100vh;display:flex;justify-content:center;align-items:flex-start;
+    padding:20px;color:var(--text);transition:background .3s;
+  }
+  .container{
+    background:var(--card);border-radius:20px;
+    box-shadow:0 20px 60px rgba(0,0,0,.3);
+    max-width:800px;width:100%;padding:35px;margin:auto;
+  }
+  .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;gap:10px}
+  h1{color:#667eea;font-size:24px;line-height:1.3}
+  body.dark h1{color:#8b9dff}
+  .subtitle{color:var(--muted);margin:10px 0 25px;font-size:14px;line-height:1.55}
+  .theme-btn{
+    background:var(--soft);border:none;font-size:20px;cursor:pointer;
+    border-radius:10px;padding:8px 12px;transition:.2s;color:var(--text);
+  }
+  .theme-btn:hover{transform:scale(1.1)}
+  .paste-zone{
+    border:3px dashed var(--line);border-radius:18px;
+    padding:60px 20px;text-align:center;
+    background:var(--soft);margin-bottom:20px;transition:.2s;
+  }
+  .paste-zone.active{border-color:#667eea;background:#eef1ff}
+  body.dark .paste-zone.active{background:#2f2f50}
+  .paste-zone .icon{font-size:64px;margin-bottom:12px}
+  .paste-zone .title{font-size:20px;font-weight:700;margin-bottom:10px;color:#667eea}
+  body.dark .paste-zone .title{color:#8b9dff}
+  .paste-zone .hint{font-size:14px;color:var(--muted);line-height:1.6}
+  .paste-zone kbd{
+    background:var(--card);border:1px solid var(--line);
+    border-radius:6px;padding:2px 8px;font-family:monospace;font-size:13px;
+  }
+  .preview{margin-bottom:20px;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:#000}
+  .preview img{display:block;width:100%;max-height:400px;object-fit:contain}
+  .progress-box{background:var(--soft);border-radius:12px;padding:16px;margin-bottom:20px}
+  .progress-box .line{height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin:10px 0 8px}
+  .progress-box .fill{height:100%;width:0;background:linear-gradient(90deg,#667eea,#764ba2);transition:.3s}
+  .progress-box .status{font-size:14px;color:var(--muted);text-align:center}
+  .answer-hero{
+    background:linear-gradient(135deg,#4caf50,#2e7d32);
+    color:#fff;border-radius:16px;padding:26px;margin-bottom:18px;
+    box-shadow:0 10px 30px rgba(76,175,80,.35);
+  }
+  .answer-hero.multi{
+    background:linear-gradient(135deg,#7c3aed,#5b21b6);
+    box-shadow:0 10px 30px rgba(124,58,237,.35);
+  }
+  .answer-hero.warn{
+    background:linear-gradient(135deg,#f59e0b,#d97706);
+    box-shadow:0 10px 30px rgba(245,158,11,.35);
+  }
+  .answer-hero.no{
+    background:linear-gradient(135deg,#f44336,#c62828);
+    box-shadow:0 10px 30px rgba(244,67,54,.35);
+  }
+  .answer-hero .tag{
+    display:inline-block;background:rgba(255,255,255,.22);
+    padding:4px 14px;border-radius:20px;font-size:12px;
+    font-weight:700;margin-bottom:14px;letter-spacing:.5px;
+  }
+  .answer-hero .hero-label{font-size:14px;opacity:.95;margin-bottom:12px}
+  .answer-hero .answers-list{display:flex;flex-direction:column;gap:10px}
+  .answer-hero .ans-item{
+    background:rgba(255,255,255,.18);
+    padding:14px 18px;border-radius:10px;
+    font-size:16px;font-weight:600;line-height:1.45;
+    text-align:left;display:flex;gap:10px;align-items:flex-start;
+  }
+  .answer-hero .ans-item .check{flex-shrink:0;font-size:18px;line-height:1.2}
+  .answer-hero .meta{font-size:12px;opacity:.85;margin-top:14px;line-height:1.5}
+  .answer-hero .hint-below{
+    font-size:13px;opacity:.95;margin-top:16px;padding:10px 14px;
+    background:rgba(0,0,0,.15);border-radius:8px;line-height:1.5;
+  }
+  .info-card{background:var(--soft);border-radius:12px;padding:18px;margin-bottom:16px}
+  .info-card h3{font-size:13px;color:#667eea;margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px}
+  body.dark .info-card h3{color:#8b9dff}
+  .info-card .note{
+    font-size:14px;color:var(--text);line-height:1.6;
+    padding:12px;background:var(--card);border-radius:8px;
+    border-left:3px solid #667eea;
+  }
+  .info-card .warn-note{
+    font-size:13px;color:var(--warn);line-height:1.55;margin-top:12px;
+    padding:10px;background:var(--warnbg);border-radius:8px;
+  }
+  .diag{
+    font-size:12px;color:var(--muted);line-height:1.6;
+    padding:10px;background:var(--card);border-radius:8px;
+    margin-top:10px;font-family:monospace;
+  }
+  .diag b{color:#667eea}
+  .diag .ok{color:var(--ok);font-weight:700}
+  .diag .no{color:var(--no);font-weight:700}
+  .btn{
+    background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;
+    padding:14px 30px;border-radius:12px;font-size:16px;font-weight:600;
+    cursor:pointer;width:100%;transition:.2s;
+  }
+  .btn:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(102,126,234,.4)}
+  .btn.secondary{background:var(--soft);color:#667eea;margin-top:12px}
+  body.dark .btn.secondary{color:#8b9dff}
+  .hidden{display:none}
+  @media(max-width:560px){
+    .container{padding:20px;border-radius:16px}
+    h1{font-size:19px}
+    .paste-zone{padding:40px 15px}
+    .paste-zone .icon{font-size:48px}
+    .answer-hero{padding:20px}
+    .answer-hero .ans-item{font-size:15px;padding:12px 14px}
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="topbar">
+    <h1>🔍 Сканер тестов 2ГИС</h1>
+    <button class="theme-btn" onclick="toggleTheme()">🌙</button>
+  </div>
+  <p class="subtitle">
+    Сделай скриншот вопроса и нажми <kbd>Ctrl</kbd>+<kbd>V</kbd> — сервис определит <b>тип вопроса</b> и покажет <b>правильные ответы текстом</b>.
+  </p>
+
+  <div id="paste-zone" class="paste-zone">
+    <div class="icon">📸</div>
+    <div class="title">Нажми Ctrl + V, чтобы вставить скриншот</div>
+    <div class="hint">Скопируй картинку из буфера — распознавание запустится автоматически</div>
+  </div>
+
+  <div id="preview-box" class="preview hidden"><img id="preview-img" alt=""></div>
+
+  <div id="progress-area" class="hidden">
+    <div class="progress-box">
+      <div class="status" id="progress-status">Готовим распознавание…</div>
+      <div class="line"><div class="fill" id="progress-fill"></div></div>
+      <div class="status" id="progress-percent">0%</div>
+    </div>
+  </div>
+
+  <div id="result-area" class="hidden">
+    <div id="answer-hero"></div>
+    <div id="found-question"></div>
+    <button class="btn secondary" onclick="clearAll()">← Вставить другой скриншот</button>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   БАЗА ПРАВИЛ
+   ============================================================ */
+const RULES = [
+
+  /* ========== СОВМЕСТИМОСТЬ ПОЗИЦИЙ ========== */
+  {
+    topic:["диалог","масштаб","бизнес","справочники"],
+    topicStrong:["совместно","оформлять","адреса"],
+    questionKeys:["совместно","оформлять","адреса"],
+    type:"truefalse",
+    correctTexts:["Неверно — нельзя оформлять совместно"],
+    note:"Позиции «Диалог», «Масштаб», «Бизнес» и «Все справочники» НЕЛЬЗЯ оформлять для одной компании совместно, даже на разные адреса."
+  },
+  {
+    topic:["диалог","масштаб","бизнес","справочники","одна"],
+    topicStrong:["одна","должна","компании"],
+    questionKeys:["одна","должна","компании"],
+    type:"single",
+    correctTexts:["Только одна из этих позиций"],
+    note:"У компании может быть только ОДНА из позиций: «Диалог», «Масштаб», «Бизнес», «Все справочники»."
+  },
+
+  /* ========== ERM ========== */
+  {
+    topic:["erm","ту","показывает"],
+    topicStrong:["erm","показывает","ту"],
+    questionKeys:["показывает","erm","заведении"],
+    type:"single",
+    correctTexts:["Допустимые пороги скидки по ТУ"],
+    note:"ERM сам показывает допустимые пороги скидки по ТУ при заведении/расчёте."
+  },
+  {
+    topic:["erm","себестоимост"],
+    topicStrong:["erm","предупрежден"],
+    questionKeys:["реагирует","нарушени","предупрежден"],
+    type:"single",
+    correctTexts:["Показывает предупреждения в позиции, в заказе, при проверке заказа и переводе по статусу"],
+    note:"ERM показывает предупреждения о нарушении себестоимости/порога ИС."
+  },
+  {
+    topic:["порог","ис"],
+    topicStrong:["порог","ис"],
+    questionKeys:["превышать","порог"],
+    type:"truefalse",
+    correctTexts:["Неверно — превышать нельзя"],
+    note:"Превышать порог по ИС нельзя."
+  },
+  {
+    topic:["акци","сверять","запуск"],
+    topicStrong:["акци","сверять"],
+    questionKeys:["запуском","сверять","акци"],
+    type:"single",
+    correctTexts:["Вручную сверять условия по брифу и/или описанию акции"],
+    note:"Перед запуском акции — вручную сверить условия."
+  },
+
+  /* ========== ТУ + АКЦИИ ========== */
+  {
+    topic:["ту","акци","скидк"],
+    topicStrong:["ту","акци"],
+    questionKeys:["скидк","давать","можно"],
+    type:"multi",
+    correctTexts:["Отзывы Про"],
+    note:"По ТУ + акции можно для «Отзывы Про». Нельзя — Колл-трекинг и Купер."
+  },
+
+  /* ========== КАТАЛОГ ========== */
+  {
+    topic:["каталог","товар","услуг"],
+    topicStrong:["каталог"],
+    questionKeys:["показать","каталог","услуг"],
+    type:"multi",
+    correctTexts:[
+      "Товары и услуги, цены",
+      "Фотографии и описание",
+      "Целевое действие (ссылка, соцсеть, телефон, мессенджеры, приложение)"
+    ],
+    note:"В каталоге можно показать: товары и услуги с ценами, фотографии и описание, целевое действие. Рекламу конкурентов — НЕЛЬЗЯ."
+  },
+  {
+    topic:["каталог","закреп","вкладк"],
+    topicStrong:["закреп","вкладк"],
+    questionKeys:["закреп","вкладк","товаров"],
+    type:"single",
+    correctTexts:["10 лучших товаров или услуг"],
+    note:"На первой вкладке карточки — 10 лучших товаров или услуг."
+  },
+
+  /* ========== Т-БАНК ========== */
+  {
+    topic:["т-банк","тбанк","кредит"],
+    topicStrong:["т-банк","тбанк"],
+    questionKeys:["заказчик","может"],
+    type:"single",
+    correctTexts:["ИП или физическое лицо"],
+    note:"Заказчиком кредитования в Т-Банке может быть ИП или физлицо."
+  },
+  {
+    topic:["т-банк","тбанк","кредит"],
+    topicStrong:["т-банк","тбанк"],
+    questionKeys:["лимит","сумма","максимальн"],
+    type:"single",
+    correctTexts:["От 3 000 ₽ до 500 000 ₽"],
+    note:"Сумма кредита Т-Банка — 3 000–500 000 ₽."
+  },
+  {
+    topic:["т-банк","тбанк","кредит"],
+    topicStrong:["т-банк","тбанк"],
+    questionKeys:["возраст","лет"],
+    type:"single",
+    correctTexts:["От 18 до 75 лет"],
+    note:"Возраст — 18–75 лет."
+  },
+  {
+    topic:["т-банк","тбанк","клиент"],
+    topicStrong:["т-банк","тбанк","клиент"],
+    questionKeys:["обязательно","клиентом"],
+    type:"truefalse",
+    correctTexts:["Неверно — быть клиентом НЕ обязательно"],
+    note:"Быть клиентом Т-Банка НЕ обязательно."
+  },
+  {
+    topic:["т-банк","тбанк","скидка","ту"],
+    topicStrong:["т-банк","тбанк","ту"],
+    questionKeys:["скидка","максимальн"],
+    type:"single",
+    correctTexts:["Максимум 20%"],
+    note:"Скидка по ТУ — максимум 20%."
+  },
+  {
+    topic:["т-банк","тбанк","деньги","кредит"],
+    topicStrong:["т-банк","тбанк"],
+    questionKeys:["когда","перечисл","дней"],
+    type:"single",
+    correctTexts:["В течение 2 дней с момента одобрения"],
+    note:"Деньги — 2 дня с момента одобрения."
+  },
+  {
+    topic:["т-банк","тбанк","срок","бз"],
+    topicStrong:["т-банк","тбанк"],
+    questionKeys:["срок","бз","месяцев"],
+    type:"multi",
+    correctTexts:["3 месяца","4 месяца","6 месяцев","10 месяцев","12 месяцев"],
+    note:"Срок БЗ — 3, 4, 6, 10, 12 месяцев."
+  },
+
+  /* ========== ЛОГОТИП НА КАРТЕ ========== */
+  {
+    topic:["логотип","увеличенн"],
+    topicStrong:["логотип","увеличенн"],
+    questionKeys:["увеличенн","логотип"],
+    type:"truefalse",
+    correctTexts:["Верно"],
+    note:"При поиске по названию конкурента логотип в увеличенном размере — ВЕРНО."
+  },
+  {
+    topic:["логотип","навигатор"],
+    topicStrong:["логотип","навигатор"],
+    questionKeys:["навигатор","логотип"],
+    type:"single",
+    correctTexts:["Баннер с подробной информацией, кнопкой действия и построением маршрута"],
+    note:"В навигаторе по клику — баннер с инфо, кнопкой и маршрутом."
+  },
+  {
+    topic:["премиум-логотип","логотип","карте"],
+    topicStrong:["премиум","карте"],
+    questionKeys:["сценарии","карте"],
+    type:"multi",
+    correctTexts:[
+      "Пользователь изучает карту, ничего не ищет → видит логотип",
+      "Поиск по названию конкурента → логотип увеличен",
+      "Пользователь в навигаторе, маршрут проходит рядом → видит логотип"
+    ],
+    note:"3 сценария премиум-логотипа на карте."
+  },
+
+  /* ========== AI-САММАРИ ========== */
+  {
+    topic:["ai-саммари","саммари"],
+    topicStrong:["саммари","нерд"],
+    questionKeys:["изменилось","саммари"],
+    type:"multi",
+    correctTexts:[
+      "Сезонность считается корректнее даже при 30+ рубриках",
+      "Добавлено сравнение РД и неРД внутри рубрик",
+      "Появился анализ прошлого размещения для прекративших рекламу"
+    ],
+    note:"AI-саммари: сезонность, сравнение РД/неРД, анализ прошлого размещения."
+  },
+
+  /* ========== 3D-ОБЪЕКТ ========== */
+  {
+    topic:["3d","готовит"],
+    topicStrong:["готовит","дизайнер"],
+    questionKeys:["готовит","филиальной"],
+    type:"single",
+    correctTexts:["Дизайнеры 2ГИС (для филиальной сети)"],
+    note:"Для филиальной сети — дизайнеры 2ГИС."
+  },
+  {
+    topic:["3d","показов","мобильном"],
+    topicStrong:["мобильном","показов"],
+    questionKeys:["показов","мобильном"],
+    type:"single",
+    correctTexts:["До 2 показов в месяц"],
+    note:"Мобильное приложение — до 2 показов."
+  },
+  {
+    topic:["3d","показов","онлайн"],
+    topicStrong:["онлайн","показов"],
+    questionKeys:["показов","онлайн"],
+    type:"single",
+    correctTexts:["До 3 показов в месяц"],
+    note:"Онлайн — до 3 показов."
+  },
+  {
+    topic:["3d","менять","материал"],
+    topicStrong:["менять","материал"],
+    questionKeys:["менять","неделю"],
+    type:"single",
+    correctTexts:["1 раз в месяц"],
+    note:"Материал 3D-объекта — 1 раз в месяц."
+  },
+  {
+    topic:["3d","правок"],
+    topicStrong:["правок"],
+    questionKeys:["правок","внести"],
+    type:"single",
+    correctTexts:["Не больше 2 правок"],
+    note:"Не больше 2 правок."
+  },
+  {
+    topic:["3d","пакет","продавать"],
+    topicStrong:["пакет","продавать"],
+    questionKeys:["продавать","пакет"],
+    type:"multi",
+    correctTexts:[
+      "«Лайт Медиа»","«Старт Медиа»","«Брендирование»","«Медиакарточка»","«Премиум-карточка (МП)»"
+    ],
+    note:"3D-объект — только с пакетами."
+  },
+
+  /* ========== СТОРИС ========== */
+  {
+    topic:["сторис","компанию"],
+    topicStrong:["сторис","компанию"],
+    questionKeys:["сторис","компанию"],
+    type:"single",
+    correctTexts:["До 30 сторис на всю компанию"],
+    note:"До 30 сторис на всю компанию."
+  },
+  {
+    topic:["сторис","слайд"],
+    topicStrong:["слайд","изображени"],
+    questionKeys:["слайд","изображени"],
+    type:"single",
+    correctTexts:["От 1 до 5 слайдов (для изображений)"],
+    note:"Сторис — 1–5 слайдов."
+  },
+  {
+    topic:["сторис","видео"],
+    topicStrong:["видео","длительност"],
+    questionKeys:["видео","секунд"],
+    type:"single",
+    correctTexts:["От 6 до 30 секунд"],
+    note:"Видео — 6–30 сек."
+  },
+  {
+    topic:["сторис","сберпрайм","значок"],
+    topicStrong:["сберпрайм","значок"],
+    questionKeys:["сберпрайм","значок"],
+    type:"single",
+    correctTexts:["Зелёный значок скидки"],
+    note:"СберПрайм-сторис — зелёный значок."
+  },
+  {
+    topic:["сторис","сберпрайм","рубрика"],
+    topicStrong:["сберпрайм","исключени"],
+    questionKeys:["рубрика","исключени"],
+    type:"truefalse",
+    correctTexts:["Неверно"],
+    note:"При рубрике-исключении СберПрайм недоступен."
+  },
+
+  /* ========== БРЕНДИРОВАНИЕ ========== */
+  {
+    topic:["утп","объявлени"],
+    topicStrong:["утп","объявлени"],
+    questionKeys:["символ","утп"],
+    type:"single",
+    correctTexts:["До 70 символов"],
+    note:"УТП — 70 символов."
+  },
+  {
+    topic:["кнопк","действи"],
+    topicStrong:["кнопк","действи"],
+    questionKeys:["символ","кнопк"],
+    type:"single",
+    correctTexts:["До 28 символов"],
+    note:"Кнопка — 28 символов."
+  },
+  {
+    topic:["маркер","карте","объявлени"],
+    topicStrong:["маркер","карте"],
+    questionKeys:["символ","маркер"],
+    type:"single",
+    correctTexts:["До 36 символов"],
+    note:"Под маркером — 36 символов."
+  },
+
+  /* ========== ЗАКРЕПЫ ========== */
+  {
+    topic:["закреп","фото","видео"],
+    topicStrong:["закреп","фото"],
+    questionKeys:["закреп","фото"],
+    type:"single",
+    correctTexts:["До 20 фото/видео на филиал"],
+    note:"20 фото/видео на филиал."
+  },
+  {
+    topic:["главн","отзыв","закреп"],
+    topicStrong:["главн","отзыв"],
+    questionKeys:["главн","отзыв"],
+    type:"single",
+    correctTexts:["1 главный отзыв на филиал"],
+    note:"1 главный отзыв."
+  },
+
+  /* ========== ВАКАНСИИ ========== */
+  {
+    topic:["ваканси","закреп","главной"],
+    topicStrong:["ваканси","закреп"],
+    questionKeys:["ваканси","главной"],
+    type:"single",
+    correctTexts:["До 10 вакансий на главной вкладке"],
+    note:"10 закреплённых вакансий."
+  },
+  {
+    topic:["ваканси","названи"],
+    topicStrong:["названи","символ"],
+    questionKeys:["ваканси","символ"],
+    type:"single",
+    correctTexts:["2–150 символов"],
+    note:"Название — 2–150."
+  },
+  {
+    topic:["ваканси","описани"],
+    topicStrong:["описани","символ"],
+    questionKeys:["ваканси","описани"],
+    type:"single",
+    correctTexts:["2–2000 символов"],
+    note:"Описание — 2–2000."
+  },
+  {
+    topic:["ваканси","закреп","управлени"],
+    topicStrong:["закреп","ваканси"],
+    questionKeys:["ваканси","закреп"],
+    type:"single",
+    correctTexts:["1–10 закреплённых вакансий"],
+    note:"Закреплённых — 1–10."
+  },
+  {
+    topic:["слой вакансий","появляется"],
+    topicStrong:["слой","ваканси"],
+    questionKeys:["слой","появляется"],
+    type:"single",
+    correctTexts:["Если в проекте есть хотя бы одна активная вакансия"],
+    note:"Слой — если есть активная вакансия."
+  },
+  {
+    topic:["практик","ваканси"],
+    topicStrong:["практик","ваканси"],
+    questionKeys:["практик","ваканси"],
+    type:"multi",
+    correctTexts:[
+      "Закреплять приоритетные вакансии",
+      "Точно указывать категорию",
+      "Обновлять актуальные объявления",
+      "Указывать зарплату",
+      "Проверять адрес филиала"
+    ],
+    note:"Лучшие практики по вакансиям."
+  },
+
+  /* ========== ГЕОМЕТР ========== */
+  {
+    topic:["геометр","сравнени"],
+    topicStrong:["геометр","сравнени"],
+    questionKeys:["геометр","компани"],
+    type:"single",
+    correctTexts:["От 1 до 10 похожих компаний"],
+    note:"Геометр — 1–10 компаний."
+  },
+
+  /* ========== ИНДИВИДУАЛЬНАЯ СКИДКА ========== */
+  {
+    topic:["индивидуальн","скидк"],
+    topicStrong:["нельзя","давать"],
+    questionKeys:["нельзя","давать"],
+    type:"multi",
+    correctTexts:[
+      "2ГИС Колл-трекинг",
+      "Баннер между карточками товаров в каталоге – Купер",
+      "Отзывы Про"
+    ],
+    note:"На ИС нельзя: Колл-трекинг, Купер, Отзывы Про."
+  },
+
+  /* ========== АКЦИЯ ========== */
+  {
+    topic:["мотиваци","соревновани","зачёт"],
+    topicStrong:["прирост","процент"],
+    questionKeys:["мотиваци","соревновани"],
+    type:"multi",
+    correctTexts:[
+      "Прирост клиентской базы в штуках по всем типам клиентов",
+      "Процент сохранения базы в объёме"
+    ],
+    note:"Два зачёта в акции."
+  },
+  {
+    topic:["вознагражд","мпп"],
+    topicStrong:["мпп","вознагражд"],
+    questionKeys:["вознагражд","мпп"],
+    type:"single",
+    correctTexts:["160 000 ₽"],
+    note:"Максимум МПП — 160 000 ₽."
+  },
+  {
+    topic:["месяцы продаж"],
+    topicStrong:["месяцы","продаж"],
+    questionKeys:["месяцы","продаж"],
+    type:"single",
+    correctTexts:["Август – октябрь"],
+    note:"Август–октябрь."
+  },
+  {
+    topic:["локальн","зачёт"],
+    topicStrong:["локальн","зачёт"],
+    questionKeys:["локальн","зачёт"],
+    type:"single",
+    correctTexts:["Местные + региональные"],
+    note:"Локальный — местные + региональные."
+  },
+  {
+    topic:["общефилиальн","зачёт"],
+    topicStrong:["общефилиальн"],
+    questionKeys:["общефилиальн","зачёт"],
+    type:"single",
+    correctTexts:["Только местные"],
+    note:"Общефилиальный — только местные."
+  },
+  {
+    topic:["минимальн","объём","выпуск"],
+    topicStrong:["минимальн","объём"],
+    questionKeys:["минимальн","объём"],
+    type:"single",
+    correctTexts:["Стоимость пакета «Медиакарточка (МП)»"],
+    note:"Объём ≥ стоимости «Медиакарточка (МП)»."
+  },
+  {
+    topic:["приз","локальн"],
+    topicStrong:["приз","локальн"],
+    questionKeys:["приз","локальн"],
+    type:"single",
+    correctTexts:["10 000 ₽"],
+    note:"Локальные призы — 10 000 ₽."
+  },
+
+  /* ========== ППС ========== */
+  {
+    topic:["ппс 4"],
+    topicStrong:["ппс 4"],
+    questionKeys:["ппс 4"],
+    type:"single",
+    correctTexts:["До 14-го рабочего дня включительно"],
+    note:"ППС 4 — 14-й день."
+  },
+  {
+    topic:["ппс 1"],
+    topicStrong:["ппс 1"],
+    questionKeys:["ппс 1"],
+    type:"single",
+    correctTexts:["До 6-го рабочего дня включительно"],
+    note:"ППС 1 — 6-й день."
+  },
+  {
+    topic:["ппс 2","ппс 3"],
+    topicStrong:["ппс 2"],
+    questionKeys:["ппс"],
+    type:"single",
+    correctTexts:["До конца месяца"],
+    note:"ППС 2, 3 — до конца месяца."
+  },
+  {
+    topic:["ппс","считается"],
+    topicStrong:["ппс","считается"],
+    questionKeys:["считается","фирме"],
+    type:"single",
+    correctTexts:["По «работе», нужно зафиксированное действие (звонок/встреча)"],
+    note:"ППС — по «работе»."
+  },
+
+  /* ========== ПРОДВИЖЕНИЕ ВАКАНСИЙ ========== */
+  {
+    topic:["продвижени","ваканси","входит"],
+    topicStrong:["входит","пакет"],
+    questionKeys:["входит","пакет"],
+    type:"multi",
+    correctTexts:[
+      "Маркер на карте с логотипом",
+      "Логотип в карточке вакансии",
+      "Приоритет карточки вакансии"
+    ],
+    note:"Пакет: маркер + логотип + приоритет."
+  },
+  {
+    topic:["ротация вакансий","топе"],
+    topicStrong:["ротация","выдач"],
+    questionKeys:["ротация","выдач"],
+    type:"single",
+    correctTexts:["Раз в час"],
+    note:"Ротация — раз в час."
+  },
+  {
+    topic:["маркер","здании","недостаточно"],
+    topicStrong:["маркер","здани"],
+    questionKeys:["маркер","здани"],
+    type:"single",
+    correctTexts:["Каждые 5 минут"],
+    note:"Маркеры — каждые 5 минут."
+  },
+
+  /* ========== ЛИДЫ СБЕРА ========== */
+  {
+    topic:["первое касание","лид"],
+    topicStrong:["первое","касание"],
+    questionKeys:["первое","касание"],
+    type:"single",
+    correctTexts:["В течение 2 часов с момента получения лида"],
+    note:"Первое касание — 2 часа."
+  },
+  {
+    topic:["эксперт сбера","лид-форма"],
+    topicStrong:["эксперт","лид"],
+    questionKeys:["эксперт","лид"],
+    type:"single",
+    correctTexts:["В течение 30 минут"],
+    note:"Эксперт Сбера — 30 минут."
+  },
+  {
+    topic:["эксперт","сбера","услуг"],
+    topicStrong:["эксперт","услуг"],
+    questionKeys:["услуг","эксперт"],
+    type:"multi",
+    correctTexts:[
+      "Вывод на маркетплейсы",
+      "Создание сайта",
+      "Аналитика продаж (снижение рисков по 115-ФЗ)",
+      "Внедрение ИИ-ассистента",
+      "Выход на рынок госзакупок"
+    ],
+    note:"Услуги экспертов Сбера."
+  },
+
+  /* ========== АКТУАЛЬНОСТЬ ========== */
+  {
+    topic:["синяя галочка","актуальность"],
+    topicStrong:["галочк","актуальн"],
+    questionKeys:["галочк","означает"],
+    type:"multi",
+    correctTexts:[
+      "Компания старше 100 дней",
+      "Есть фото",
+      "Есть контакты и режим работы",
+      "Есть цены (где разрешено)",
+      "Компания отвечает минимум на 30% отзывов"
+    ],
+    note:"Синяя галочка = 100+ дней + фото + контакты + цены + 30% отзывов."
+  },
+  {
+    topic:["отметка","актуальности","давност"],
+    topicStrong:["отметк","давност"],
+    questionKeys:["отметк","давност"],
+    type:"single",
+    correctTexts:["Более 100 дней"],
+    note:"Отметка — 100+ дней."
+  },
+
+  /* ========== ОТЗЫВЫ ПРО ========== */
+  {
+    topic:["рассылк","sms"],
+    topicStrong:["рассылк","тариф"],
+    questionKeys:["рассылк","тариф"],
+    type:"multi",
+    correctTexts:["«Бизнес»","«Масштаб»"],
+    note:"Рассылки — «Бизнес» и «Масштаб»."
+  },
+  {
+    topic:["лимит","масштаб"],
+    topicStrong:["масштаб","лимит"],
+    questionKeys:["лимит","масштаб"],
+    type:"single",
+    correctTexts:["150 рассылок в месяц на филиал"],
+    note:"Масштаб — 150/мес."
+  },
+  {
+    topic:["тарифн","тариф","отзывы про"],
+    topicStrong:["тарифн","тариф"],
+    questionKeys:["тарифн","планы"],
+    type:"multi",
+    correctTexts:["«Обзор»","«Диалог»","«Масштаб»"],
+    note:"Тарифы: Обзор, Диалог, Масштаб."
+  },
+  {
+    topic:["минимальн","сумма","бз"],
+    topicStrong:["минимальн","бз"],
+    questionKeys:["минимальн","сумма"],
+    type:"single",
+    correctTexts:["30 000 ₽"],
+    note:"Минимальная сумма БЗ — 30 000 ₽."
+  },
+  {
+    topic:["бизнес","04.08"],
+    topicStrong:["бизнес","04.08"],
+    questionKeys:["бизнес","04.08"],
+    type:"multi",
+    correctTexts:[
+      "Продаётся только в составе пакета «Премиум-карточка (МП)»",
+      "Без «Премиум-карточки (МП)» остаётся только для продлений по текущим клиентам"
+    ],
+    note:"Бизнес — только в составе Премиум-карточки."
+  },
+  {
+    topic:["новостройк","график"],
+    topicStrong:["новостройк","график"],
+    questionKeys:["новостройк","график"],
+    type:"single",
+    correctTexts:["Допустимо указывать время работы офиса продаж"],
+    note:"Новостройки — время работы офиса продаж."
+  },
+
+  /* ========== СТАРТ МЕДИА ========== */
+  {
+    topic:["бесшовн","карта"],
+    topicStrong:["бесшовн","карта"],
+    questionKeys:["бесшовн","карта"],
+    type:"single",
+    correctTexts:["Территория, не входящая ни в какой проект"],
+    note:"Бесшовная карта — не входит в проект."
+  },
+  {
+    topic:["заказов","erm","бесшовн"],
+    topicStrong:["заказов","erm"],
+    questionKeys:["заказов","erm"],
+    type:"single",
+    correctTexts:["Количество заказов = количеству рекламируемых филиалов"],
+    note:"Заказов = рекламируемых филиалов."
+  },
+  {
+    topic:["старт медиа","области"],
+    topicStrong:["старт медиа","области"],
+    questionKeys:["старт","области"],
+    type:"single",
+    correctTexts:["Только на 1 филиал в одной области"],
+    note:"В одной области — только 1 филиал."
+  },
+
+  /* ========== ПЛАТИ ЧАСТЯМИ ========== */
+  {
+    topic:["плати частями","лимит"],
+    topicStrong:["плати частями"],
+    questionKeys:["лимит","максимальн"],
+    type:"single",
+    correctTexts:["От 1 000 ₽ до 50 000 ₽"],
+    note:"Лимит — 1 000–50 000 ₽."
+  },
+  {
+    topic:["разбивк","платеж"],
+    topicStrong:["разбивк","платеж"],
+    questionKeys:["разбивк","платеж"],
+    type:"multi",
+    correctTexts:["2 месяца","3 месяца","4 месяца","6 месяцев"],
+    note:"Разбивка — 2, 3, 4, 6."
+  },
+  {
+    topic:["рассрочк","2 месяца"],
+    topicStrong:["2 месяца","рассрочк"],
+    questionKeys:["2 месяца","списывается"],
+    type:"single",
+    correctTexts:["4 равных платежа: первый 25% сразу, остальные каждые 2 недели"],
+    note:"2 мес — 4 платежа."
+  },
+  {
+    topic:["рассрочк","4 месяца"],
+    topicStrong:["4 месяца","рассрочк"],
+    questionKeys:["4 месяца","списывается"],
+    type:"single",
+    correctTexts:["4 равных платежа: первый 25% сразу, остальные раз в месяц"],
+    note:"4 мес — 4 платежа."
+  },
+  {
+    topic:["рассрочк","6 месяцев"],
+    topicStrong:["6 месяцев","рассрочк"],
+    questionKeys:["6 месяцев","списывается"],
+    type:"single",
+    correctTexts:["6 равных платежей: первая часть (1/6) сразу, остальные раз в месяц"],
+    note:"6 мес — 6 платежей."
+  },
+  {
+    topic:["плати частями","физических"],
+    topicStrong:["физических","лиц"],
+    questionKeys:["физических","лиц"],
+    type:"single",
+    correctTexts:["Только для физических лиц — клиентов Сбера"],
+    note:"Плати частями — только физлица-клиенты Сбера."
+  },
+
+  /* ========== МЕДИА: ОБЩЕЕ ========== */
+  {
+    topic:["всё включено медиа","единый"],
+    topicStrong:["единый","пакет"],
+    questionKeys:["единый","пакет"],
+    type:"single",
+    correctTexts:["Единый рекламный пакет"],
+    note:"«Всё включено Медиа» — единый пакет."
+  },
+  {
+    topic:["задачи решает","всё включено медиа"],
+    topicStrong:["задач","решает"],
+    questionKeys:["задач","решает"],
+    type:"multi",
+    correctTexts:[
+      "Заметность в поиске и на карте",
+      "Узнаваемость бренда",
+      "Демонстрация товаров, услуг и цен",
+      "Приведение пользователя к действию"
+    ],
+    note:"Пакет решает 4 задачи."
+  },
+
+  /* ========== ГЕОКОНТЕКСТ ========== */
+  {
+    topic:["геоконтекст","приоритет"],
+    topicStrong:["геоконтекст"],
+    questionKeys:["приоритет","какой"],
+    type:"single",
+    correctTexts:["Нулевой приоритет"],
+    note:"Геоконтекст — нулевой приоритет."
+  },
+  {
+    topic:["геоконтекст","выше","порядка"],
+    topicStrong:["геоконтекст","выше"],
+    questionKeys:["выше","порядка"],
+    type:"single",
+    correctTexts:["Нет, только выше бесплатных карточек"],
+    note:"Геоконтекст — не выше 1-го порядка."
+  },
+];
+
+/* ============================================================
+   УТИЛИТЫ
+   ============================================================ */
+const $ = id => document.getElementById(id);
+
+function norm(s){
+  return (s||'').toLowerCase()
+    .replace(/ё/g,'е')
+    .replace(/[^\wа-я0-9%\s+]/g,' ')
+    .replace(/\s+/g,' ')
+    .trim();
+}
+
+function containsWord(haystackNorm, wordNorm){
+  if(!wordNorm) return false;
+  const escaped = wordNorm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const reWhole = new RegExp('(^|\\s)' + escaped + '(\\s|$)');
+  if(reWhole.test(haystackNorm)) return true;
+  if(wordNorm.length >= 5){
+    const reStart = new RegExp('(^|\\s)' + escaped);
+    if(reStart.test(haystackNorm)) return true;
+  }
+  return false;
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function detectTypeFromText(ocrText){
+  const n = norm(ocrText);
+
+  const multiPhrases = [
+    'выберите все верные','выберите все правильные',
+    'выберите несколько','несколько вариантов',
+    'все верные варианты','все правильные варианты','все подходящие'
+  ];
+  const singlePhrases = ['выберите один','один вариант','выберите вариант'];
+  const tfPhrases = ['верно ли','правда ли','верно что','верно ли утверждение'];
+
+  if(multiPhrases.some(p => n.includes(p))) return 'multi';
+  if(tfPhrases.some(p => n.includes(p))) return 'truefalse';
+  if(singlePhrases.some(p => n.includes(p))) return 'single';
+
+  const squareMarks = (ocrText.match(/[\[\]□☐■❑▢]/g) || []).length;
+  const checkMarks = (ocrText.match(/[☑✓✔]/g) || []).length;
+  const circleMarks = (ocrText.match(/[○◦◯]/g) || []).length;
+
+  if(squareMarks >= 2 || checkMarks >= 2) return 'multi';
+  if(circleMarks >= 2) return 'single';
+
+  return 'unknown';
+}
+
+/* ============================================================
+   ПОИСК ПРАВИЛА (ЖЁСТКИЙ ФИЛЬТР)
+   Правило проходит, только если ВСЕ questionKeys найдены.
+   Если ни одно правило не проходит — берём лучший «мягкий» вариант.
+   ============================================================ */
+function findRule(ocrNorm, detectedType){
+  const all = RULES.map(r => {
+    const topicHits = r.topic.filter(t => containsWord(ocrNorm, norm(t))).length;
+    const strongHit = r.topicStrong.some(t => containsWord(ocrNorm, norm(t)));
+
+    const qKeys = r.questionKeys || [];
+    const qKeyHits = qKeys.filter(k => containsWord(ocrNorm, norm(k))).length;
+    const qKeyAll = qKeys.length === 0 ? true : qKeyHits === qKeys.length;
+    const qKeyHalf = qKeys.length === 0 ? true : qKeyHits >= Math.ceil(qKeys.length / 2);
+
+    let score = topicHits * 2 + (strongHit ? 3 : 0);
+
+    if(qKeys.length > 0){
+      if(qKeyAll) score += qKeyHits * 6;
+      else if(qKeyHalf) score += qKeyHits * 2;
+      else score -= 15; // почти всегда отбрасывается
+    }
+
+    // Тип вопроса
+    if(detectedType && detectedType !== 'unknown' && r.type){
+      if(r.type === detectedType) score += 5;
+      else score -= 8;
+    }
+
+    return {...r, topicHits, strongHit, qKeyHits, qKeyAll, qKeyHalf, score};
+  });
+
+  // 1) Строгий фильтр — все questionKeys найдены + тема совпала
+  const strict = all
+    .filter(r => r.qKeyAll && ((r.topicHits >= 1) || r.strongHit))
+    .sort((a,b) => b.score - a.score);
+
+  if(strict.length > 0){
+    return {...strict[0], matchType: 'strict'};
+  }
+
+  // 2) Мягкий фильтр — половина questionKeys найдена
+  const soft = all
+    .filter(r => r.qKeyHalf && ((r.topicHits >= 1) || r.strongHit))
+    .sort((a,b) => b.score - a.score);
+
+  if(soft.length > 0){
+    return {...soft[0], matchType: 'soft'};
+  }
+
+  return null;
+}
+
+/* ============================================================
+   OCR
+   ============================================================ */
+let busy = false;
+
+document.addEventListener('paste', e => {
+  if(busy) return;
+  const items = e.clipboardData?.items;
+  if(!items) return;
+  for(const it of items){
+    if(it.type?.startsWith('image/')){
+      e.preventDefault();
+      handleImage(it.getAsFile());
+      return;
+    }
+  }
+});
+
+const pz = $('paste-zone');
+['dragenter','dragover'].forEach(ev => pz.addEventListener(ev, e => {
+  e.preventDefault(); pz.classList.add('active');
+}));
+['dragleave','drop'].forEach(ev => pz.addEventListener(ev, e => {
+  e.preventDefault(); pz.classList.remove('active');
+}));
+pz.addEventListener('drop', e => {
+  const f = e.dataTransfer.files[0];
+  if(f && f.type.startsWith('image/')) handleImage(f);
+});
+
+async function handleImage(file){
+  if(busy) return;
+  busy = true;
+  const url = URL.createObjectURL(file);
+  $('preview-img').src = url;
+  $('preview-box').classList.remove('hidden');
+  $('result-area').classList.add('hidden');
+  $('progress-area').classList.remove('hidden');
+  setProgress(0, 'Инициализируем…');
+  window.scrollTo({top: 200, behavior: 'smooth'});
+
+  try{
+    const result = await Tesseract.recognize(file, 'rus+eng', {
+      logger: m => {
+        if(m.status === 'recognizing text') setProgress(Math.round(m.progress * 100), 'Распознаём текст…');
+        else if(m.status === 'loading language traineddata') setProgress(5, 'Загружаем языковые данные…');
+        else setProgress(2, 'Подготовка…');
+      }
+    });
+    setProgress(100, 'Готово!');
+    setTimeout(() => { renderResult(result.data.text || ''); busy = false; }, 200);
+  } catch(err){
+    $('progress-area').classList.add('hidden');
+    busy = false;
+    alert('Ошибка распознавания: ' + err.message);
+  }
+}
+
+function setProgress(p, status){
+  $('progress-fill').style.width = p + '%';
+  $('progress-percent').textContent = p + '%';
+  $('progress-status').textContent = status;
+}
+
+/* ============================================================
+   РЕНДЕР
+   ============================================================ */
+function renderResult(ocrText){
+  $('progress-area').classList.add('hidden');
+  $('result-area').classList.remove('hidden');
+
+  const ocrNorm = norm(ocrText);
+  const heroBox = $('answer-hero');
+  const foundBox = $('found-question');
+
+  const detectedType = detectTypeFromText(ocrText);
+  const rule = findRule(ocrNorm, detectedType);
+
+  if(!rule){
+    heroBox.innerHTML = `
+      <div class="answer-hero no">
+        <div class="tag">НЕ НАЙДЕНО</div>
+        <div class="hero-label">Вопрос не удалось сопоставить с базой знаний</div>
+        <div class="meta">Попробуй сделать скриншот чётче или пришли текст вопроса — я добавлю правило.</div>
+      </div>`;
+    foundBox.innerHTML = '';
+    return;
+  }
+
+  let finalType = rule.type;
+  if(detectedType && detectedType !== 'unknown'){
+    finalType = detectedType;
+  }
+
+  const isMulti = finalType === 'multi';
+  const typeTag = isMulti ? 'НЕСКОЛЬКО ОТВЕТОВ' : (finalType === 'truefalse' ? 'ВЕРНО / НЕВЕРНО' : 'ОДИН ОТВЕТ');
+  const heroCls = isMulti ? 'answer-hero multi' : (rule.matchType === 'soft' ? 'answer-hero warn' : 'answer-hero');
+  const labelText = isMulti ? 'Правильные ответы:' : 'Правильный ответ:';
+
+  const answersHtml = rule.correctTexts.map(t =>
+    `<div class="ans-item"><span class="check">✅</span><span>${escapeHtml(t)}</span></div>`
+  ).join('');
+
+  heroBox.innerHTML = `
+    <div class="${heroCls}">
+      <div class="tag">${typeTag}</div>
+      <div class="hero-label">${labelText}</div>
+      <div class="answers-list">${answersHtml}</div>
+      <div class="hint-below">💡 Найди эти ответы на скрине <b>по тексту</b>. Номера не показываются, чтобы не путать.</div>
+      <div class="meta">
+        ${rule.matchType === 'strict' ? '✅ Точное совпадение' : '⚠️ Приблизительное совпадение'} · тема ${rule.topicHits}/${rule.topic.length} · ключи вопроса ${rule.qKeyHits}/${rule.questionKeys.length}
+      </div>
+    </div>
+  `;
+
+  let qHtml = `<div class="info-card">
+    <h3>📘 Из материалов</h3>
+    <div class="note">${escapeHtml(rule.note)}</div>`;
+
+  // Диагностика — что сработало
+  const qKeysList = rule.questionKeys.map(k => {
+    const found = containsWord(ocrNorm, norm(k));
+    return `<span class="${found ? 'ok' : 'no'}">${found ? '✓' : '✗'} ${k}</span>`;
+  }).join(' · ');
+
+  qHtml += `<div class="diag">
+    <b>Сработавшее правило (${rule.matchType === 'strict' ? 'строгое' : 'мягкое'}):</b><br>
+    Тема: ${rule.topic.map(t => containsWord(ocrNorm, norm(t)) ? '<span class="ok">✓</span> ' + t : '<span class="no">✗</span> ' + t).join(', ')}<br>
+    Ключи вопроса: ${qKeysList}
+  </div>`;
+
+  if(detectedType !== 'unknown' && rule.type && detectedType !== rule.type){
+    qHtml += `<div class="warn-note">
+      ⚠️ На скрине маркеры указывают на тип «${detectedType === 'multi' ? 'несколько ответов' : detectedType === 'truefalse' ? 'верно/неверно' : 'один ответ'}»,
+      а в базе правило — «${rule.type === 'multi' ? 'несколько ответов' : rule.type === 'truefalse' ? 'верно/неверно' : 'один ответ'}».
+    </div>`;
+  }
+
+  qHtml += `</div>`;
+  foundBox.innerHTML = qHtml;
+  window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+function clearAll(){
+  busy = false;
+  $('preview-box').classList.add('hidden');
+  $('preview-img').src = '';
+  $('result-area').classList.add('hidden');
+  $('progress-area').classList.add('hidden');
+  $('paste-zone').classList.remove('hidden');
+  window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+function toggleTheme(){
+  document.body.classList.toggle('dark');
+  const isDark = document.body.classList.contains('dark');
+  document.querySelectorAll('.theme-btn').forEach(b => b.textContent = isDark ? '☀️' : '🌙');
+  try{ localStorage.setItem('theme', isDark ? 'dark' : 'light'); }catch(e){}
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  try{
+    if(localStorage.getItem('theme') === 'dark') document.body.classList.add('dark');
+  }catch(e){}
+  const isDark = document.body.classList.contains('dark');
+  document.querySelectorAll('.theme-btn').forEach(b => b.textContent = isDark ? '☀️' : '🌙');
+});
+</script>
+</body>
+</html>
